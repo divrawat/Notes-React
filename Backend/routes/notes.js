@@ -1,60 +1,46 @@
-const express = require('express')
-const router = express.Router()
-const Note = require('../models/Note')
-var fetchuser = require('../middleware/fetchuser')
+const express = require('express');
+const router = express.Router();
+const fetchuser = require('../middleware/fetchuser');
+const Note = require('../models/Note');
 const { body, validationResult } = require('express-validator');
-const { findByIdAndUpdate } = require('../models/Note');
 
-// Route fETCH ALL NOTES api/notes/fetchallnotes
+
+// ROUTE 1: Get All the Notes using: GET "/api/notes/getuser". Login required
 router.get('/fetchallnotes', fetchuser, async (req, res) => {
-
     try {
         const notes = await Note.find({ user: req.user.id });
         res.json(notes)
-    }
-    catch (error) {
+        
+    } catch (error) {
         console.error(error.message);
-        res.status(500).send("Internal Server Error")
+        res.status(500).send("Internal Server Error");
     }
-
-
-
 })
 
-// Route 2 Add new notes /api/notes/addnotes - Login Required
+// ROUTE 2: Add a new Note using: POST "/api/notes/addnote". Login required
 router.post('/addnote', fetchuser, [
+    body('title', 'Enter a valid title').isLength({ min: 3 }),
+    body('description', 'Description must be atleast 5 characters').isLength({ min: 5 }),], async (req, res) => {
+        try {
+            const { title, description, tag } = req.body;
 
-    body('title', 'Enter a Valid Title').isLength({ min: 3 }),
-    body('description', 'Description must be atleast 5 characters').isLength({ min: 5 })
+            // If there are errors, return Bad request and the errors
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                return res.status(400).json({ errors: errors.array() });
+            }
+            const note = new Note({
+                title, description, tag, user: req.user.id
+            })
+            const savedNote = await note.save()
 
+            res.json(savedNote)
 
-], async (req, res) => {
-
-    try {
-
-        const { title, description, tag } = req.body;
-
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
+        } catch (error) {
+            console.error(error.message);
+            res.status(500).send("Internal Server Error");
         }
-
-        const note = new Note({
-            title, description, tag, user: req.user.id
-        })
-
-        const savenote = await note.save();
-
-        res.json(savenote)
-
-    }
-    catch (error) {
-        console.error(error.message);
-        res.status(500).send("Internal Server Error")
-    }
-
-})
-
+    })
 
 // ROUTE 3: Update an existing Note using: PUT "/api/notes/updatenote". Login required
 router.put('/updatenote/:id', fetchuser, async (req, res) => {
@@ -81,7 +67,6 @@ router.put('/updatenote/:id', fetchuser, async (req, res) => {
     }
 })
 
-
 // ROUTE 4: Delete an existing Note using: DELETE "/api/notes/deletenote". Login required
 router.delete('/deletenote/:id', fetchuser, async (req, res) => {
     try {
@@ -101,6 +86,4 @@ router.delete('/deletenote/:id', fetchuser, async (req, res) => {
         res.status(500).send("Internal Server Error");
     }
 })
-
-
-module.exports = router;
+module.exports = router
